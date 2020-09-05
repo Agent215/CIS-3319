@@ -8,13 +8,24 @@ from random import random
 # The messages are encrypted using pyDes, a pure python implmentation of DES
 # here is the documentation for pyDes https://github.com/twhiteman/pyDes
 
-# this will be put in a seperate file later
+
 DES_key = None
 # for now just localhost
 host = "127.0.0.1"
+args = []
 isServer = False
-# for now its over 9000
-port = 9001
+# for now its 9000
+port = 9000
+
+
+def parseArgs():
+    if len(sys.argv) < 4:
+        print("Please Enter: [HostName][PortNumber][Server/Client]")
+        return False
+    args.append(sys.argv[1])
+    args.append(sys.argv[2])
+    args.append(sys.argv[3])
+    return True
 
 
 def generateKey():
@@ -48,18 +59,29 @@ def StartChat():
     # build server address from user input
     server_address = (host, port)
 
-generateKey()
-readKey("KEY.txt")
+    # Server side
+    # if args[1] == "server":
 
 
-# this is taken from the pyDes documentation page
-data = input("Please encrypt my data").strip("\r\n")
-# we use the PAD_PKCS5 because this can handle padded and unpadded ciphers.
-# so there is no reason not to use this pad mode.
-key = pydes.des("DESCRYPT", pydes.CBC, DES_key,
-                pad=None, padmode=pydes.PAD_PKCS5)
-message = key.encrypt(data)
+def main():
+    if parseArgs():
+        print("main")
+        StartChat()
+        generateKey()
+        readKey("KEY.txt")
 
-cipher = key.encrypt(data)
-print("Encrypted: %r" % cipher)
-print("Decrypted: %r" % key.decrypt(cipher))
+        # this is taken from the pyDes documentation page
+        data = input("Please encrypt my data").strip("\r\n")
+        # we use the PAD_PKCS5 because this can handle padded and unpadded ciphers.
+        # so there is no reason not to use this pad mode.
+        key = pydes.des("DESCRYPT", pydes.CBC, DES_key,
+                        pad=None, padmode=pydes.PAD_PKCS5)
+        message = key.encrypt(data)
+
+        cipher = key.encrypt(data)
+        print("Encrypted: %r" % cipher)
+        print("Decrypted: %r" % key.decrypt(cipher))
+
+
+if __name__ == "__main__":
+    main()
