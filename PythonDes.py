@@ -1,3 +1,4 @@
+# Abraham Schultz 9/14/2020
 import pyDes as pydes
 import socket
 import sys
@@ -11,6 +12,7 @@ import os.path
 CLIENT = "CLIENT"
 SERVER = "SERVER"
 CONNECTION_BUFFER_SIZE = 1024000000  # 1024 MB
+KEY_FILE = "KEY.txt"
 args = []
 
 
@@ -26,12 +28,12 @@ def parseArgs():
 
 def generateKey():
     # reset key
-    f = open("KEY.txt", "w")
+    f = open(KEY_FILE, "w")
     f.close()
     # seed random number generator
     seed()
     # 8 bit key
-    f = open("KEY.txt", "a")
+    f = open(KEY_FILE, "a")
     for x in range(8):
         # float between 0-1
         temp = random()
@@ -41,7 +43,6 @@ def generateKey():
             temp = str(1)
         f.write(temp)
     f.close()
-    
 
 
 def readKey(fileName):
@@ -67,10 +68,9 @@ def StartChat(deskey):
         print("waiting for client to connect")
         conn, server_address = socket_.accept()
         print("client connected")
-
+        print("DES KEY:" + deskey)
         while True:
             message = input("Enter Text To send: ").strip("\r\n")
-            print("DES KEY:" + deskey)
 
             key = pydes.des("DESCRYPT", pydes.CBC, deskey,
                             pad=None, padmode=pydes.PAD_PKCS5)
@@ -90,9 +90,9 @@ def StartChat(deskey):
     elif args[2] == CLIENT.lower():
 
         socket_.connect(server_address)
-
+        print("DES KEY:" + deskey)
         while True:
-            print("DES KEY:" + deskey)
+
             print("waiting for message from server")
 
             receivedMessage = socket_.recv(CONNECTION_BUFFER_SIZE)
@@ -113,11 +113,11 @@ def StartChat(deskey):
 def main():
     if parseArgs():
 
-        if (os.path.exists("KEY.txt")) == False:
+        if (os.path.exists(KEY_FILE)) == False:
             generateKey()
-            key = readKey("KEY.txt")
+            key = readKey(KEY_FILE)
         else:
-            key = readKey("KEY.txt")
+            key = readKey(KEY_FILE)
         if key is not None:
             StartChat(key)
 
