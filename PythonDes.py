@@ -3,19 +3,15 @@ import socket
 import sys
 from random import seed
 from random import random
-
+import os.path
 # This is a small chat program between a server and a client
 # The messages are encrypted using pyDes, a pure python implmentation of DES
 # here is the documentation for pyDes https://github.com/twhiteman/pyDes
 
-
-DES_key = None
-# for now just localhost
-host = "127.0.0.1"
+CLIENT = "CLIENT"
+SERVER = "SERVER"
+CONNECTION_BUFFER_SIZE = 1024000000  # 1024 MB
 args = []
-isServer = False
-# for now its 9000
-port = 9000
 
 
 def parseArgs():
@@ -33,7 +29,7 @@ def generateKey():
     f = open("KEY.txt", "w")
     f.close()
     # seed random number generator
-    seed(1)
+    seed()
     # 8 bit key
     f = open("KEY.txt", "a")
     for x in range(8):
@@ -45,42 +41,85 @@ def generateKey():
             temp = str(1)
         f.write(temp)
     f.close()
+    
 
 
 def readKey(fileName):
     f = open(fileName, "r")
-    DES_key = str(f.readline().strip('\r\n'))
-    print("reading key from file : " + DES_key)
+    key = str(f.readline().strip('\r\n'))
+    print("reading key from file : " + key)
+    return key
 
 
-def StartChat():
+def StartChat(deskey):
     # Create a TCP/IP socket
     socket_ = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     # build server address from user input
-    server_address = (host, port)
+    server_address = (args[0], int(args[1]))
 
     # Server side
-    # if args[1] == "server":
+    if args[2].lower() == SERVER.lower():
+        # set up server to listen and bind to appropriate host and port
+        socket_.bind(server_address)
+        print("bind succesfull")
+        # listen for client on that socket
+        socket_.listen()
+        print("waiting for client to connect")
+        conn, server_address = socket_.accept()
+        print("client connected")
+
+        while True:
+            message = input("Enter Text To send: ").strip("\r\n")
+            print("DES KEY:" + deskey)
+
+            key = pydes.des("DESCRYPT", pydes.CBC, deskey,
+                            pad=None, padmode=pydes.PAD_PKCS5)
+            cipher = key.encrypt(message)
+
+            print("sending ciphertext :" + str(cipher))
+            conn.send(cipher)
+
+            print("waiting for message from client")
+            receivedMessage = conn.recv(CONNECTION_BUFFER_SIZE)
+            # decrypt incoming message
+            receivedMessage = key.decrypt(
+                receivedMessage, padmode=pydes.PAD_PKCS5)
+            print("Decrypted text:" + receivedMessage.decode("utf-8"))
+
+    # Client side
+    elif args[2] == CLIENT.lower():
+
+        socket_.connect(server_address)
+
+        while True:
+            print("DES KEY:" + deskey)
+            print("waiting for message from server")
+
+            receivedMessage = socket_.recv(CONNECTION_BUFFER_SIZE)
+            key = pydes.des("DESCRYPT", pydes.CBC, deskey,
+                            pad=None, padmode=pydes.PAD_PKCS5)
+            receivedMessage = key.decrypt(
+                receivedMessage, padmode=pydes.PAD_PKCS5)
+
+            print("Decrypted text: %r" % (receivedMessage).decode("utf-8"))
+            message = input("Enter Text To send: ").strip("\r\n")
+            cipher = key.encrypt(message)
+            print("sending ciphertext:" + str(cipher))
+            socket_.send(cipher)
+    else:
+        print("please enter a either server or client as third argument")
 
 
 def main():
     if parseArgs():
-        print("main")
-        StartChat()
-        generateKey()
-        readKey("KEY.txt")
 
-        # this is taken from the pyDes documentation page
-        data = input("Please encrypt my data").strip("\r\n")
-        # we use the PAD_PKCS5 because this can handle padded and unpadded ciphers.
-        # so there is no reason not to use this pad mode.
-        key = pydes.des("DESCRYPT", pydes.CBC, DES_key,
-                        pad=None, padmode=pydes.PAD_PKCS5)
-        message = key.encrypt(data)
-
-        cipher = key.encrypt(data)
-        print("Encrypted: %r" % cipher)
-        print("Decrypted: %r" % key.decrypt(cipher))
+        if (os.path.exists("KEY.txt")) == False:
+            generateKey()
+            key = readKey("KEY.txt")
+        else:
+            key = readKey("KEY.txt")
+        if key is not None:
+            StartChat(key)
 
 
 if __name__ == "__main__":
