@@ -18,7 +18,7 @@ DES_KEY_FILE = "KEY.txt"
 HMAC_KEY_FILE = "HMAC_KEY.txt"
 args = []
 
-
+#return false if incorrect syntax
 def parseArgs():
     if len(sys.argv) < 4:
         print("Please Enter: [HostName][PortNumber][Server/Client]")
@@ -49,10 +49,7 @@ def generateKey():
     f.close()
 
 # subroutine to read in key
-
 # pass file name to read, and if its a hash, this just is for custom print out
-
-
 def readKey(fileName, hmac):
     f = open(fileName, "r")
     key = str(f.readline().strip('\r\n'))
@@ -61,7 +58,6 @@ def readKey(fileName, hmac):
     else:
         print("reading key from DES key file : " + key)
     return key
-
 
 # this function runs the server or client side script depending on user input
 def StartChat(deskey, hmackey):
@@ -107,16 +103,18 @@ def StartChat(deskey, hmackey):
             #Encrypt message with hash
             cipher = key.encrypt(message)
             print("sending ciphertext :" + str(cipher))
+            #send encypted message
             conn.send(cipher)
             print("waiting for message from client")
+            
             receivedMessage = conn.recv(CONNECTION_BUFFER_SIZE)
             print("received ciphertext:" + str(receivedMessage))
             # decrypt incoming message
             receivedMessage = key.decrypt(
                 receivedMessage, padmode=pydes.PAD_PKCS5)
-            #split off message using delineation
+            #split off message 
             receivedMessage, receivedHmac = splitMessage(receivedMessage)
-            # hash the received plaintest to calculate hash
+            # new hash for incoming message
             digest_makersen = hmac.new(hmackey, b'', hashlib.md5,)
             digest_makersen.update(receivedMessage)
             digest = digest_makersen.hexdigest()
@@ -126,10 +124,8 @@ def StartChat(deskey, hmackey):
             print("recieved hmac: " + str(receivedHmac.decode('utf-8')))
             print("calculated hmac: " + calculatedHmac)
 
-            if calculatedHmac == receivedHmac.decode('utf-8'):
-                print("HMAC VERIFIED")
-            else:
-                print("HMAC NOT VERIFIED, THIS MESSAGE INTEGRITY CAN NOT BE CONFIRMED")
+            checkHash(calculatedHmac, receivedHmac)
+        
 
             
 
@@ -152,8 +148,7 @@ def StartChat(deskey, hmackey):
                             pad=None, padmode=pydes.PAD_PKCS5)
             receivedMessage = key.decrypt(
                 receivedMessage, padmode=pydes.PAD_PKCS5)
-            
-            #split off message using delineation
+            #split off message 
             receivedMessage, receivedHmac = splitMessage(receivedMessage)
             # hash the received plaintest to calculate hash
             digest_maker.update(receivedMessage)
@@ -164,11 +159,8 @@ def StartChat(deskey, hmackey):
             print("recieved hmac: " + str(receivedHmac.decode('utf-8')))
             print("calculated hmac: " + calculatedHmac)
             
-
-            if calculatedHmac == receivedHmac.decode('utf-8'):
-                print("HMAC VERIFIED")
-            else:
-                print("HMAC NOT VERIFIED, THIS MESSAGE INTEGRITY CAN NOT BE CONFIRMED")
+            checkHash(calculatedHmac, receivedHmac)
+           
             message = input("Enter Text To send, q to quit: ").strip("\r\n")
             # quit command
             if message == "q":
@@ -195,9 +187,16 @@ def splitMessage(msg):
     return m, h
 
 
+#function to compare hashs
+def checkHash(calc, recv):
+    if calc == recv.decode('utf-8'):
+        print("HMAC VERIFIED")
+    else:
+        print("HMAC NOT VERIFIED, THIS MESSAGE INTEGRITY CAN NOT BE CONFIRMED")
+
+
 def main():
     if parseArgs():
-
         # read in hmac key
         # we just assume that both sender and reciever have the key
         hmacKey = readKey(HMAC_KEY_FILE, True).encode('utf-8')
